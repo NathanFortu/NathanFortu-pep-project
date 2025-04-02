@@ -31,18 +31,28 @@ public class SocialMediaController {
     public Javalin startAPI() {
         Javalin app = Javalin.create();
         
-        // User registration and login endpoints
+        // Requirement 1: User registration
         app.post("/register", this::registerUserHandler);
+        
+        // Requirement 2: User login
         app.post("/login", this::loginUserHandler);
         
-        // Message endpoints
-        app.get("/messages", this::getAllMessagesHandler);
+        // Requirement 3: Create a new message
         app.post("/messages", this::createMessageHandler);
+        
+        // Requirement 4: Get all messages
+        app.get("/messages", this::getAllMessagesHandler);
+        
+        // Requirement 5: Get a message by ID
         app.get("/messages/{message_id}", this::getMessageByIdHandler);
+        
+        // Requirement 6: Delete a message
         app.delete("/messages/{message_id}", this::deleteMessageHandler);
+        
+        // Requirement 7: Update a message
         app.patch("/messages/{message_id}", this::updateMessageHandler);
         
-        // Account-specific message endpoints
+        // Requirement 8: Get all messages by a user
         app.get("/accounts/{account_id}/messages", this::getMessagesByUserHandler);
         
         return app;
@@ -53,13 +63,15 @@ public class SocialMediaController {
             ObjectMapper mapper = new ObjectMapper();
             Account account = mapper.readValue(ctx.body(), Account.class);
             
-            Boolean registered = accountService.registerAccount(account.getUsername(), account.getPassword());
+            boolean successful = accountService.registerAccount(account.getUsername(), account.getPassword());
             
-            if (registered != false) {
-                ctx.status(201); // Created
-                ctx.json(account);
+            if (successful) {
+                // Get the newly registered account to return (including account_id)
+                Account registeredAccount = accountService.login(account.getUsername(), account.getPassword());
+                ctx.status(200);
+                ctx.json(registeredAccount);
             } else {
-                ctx.status(400); // Bad Request
+                ctx.status(400);
             }
         } catch (Exception e) {
             ctx.status(400);
@@ -74,10 +86,28 @@ public class SocialMediaController {
             Account loggedInAccount = accountService.login(credentials.getUsername(), credentials.getPassword());
             
             if (loggedInAccount != null) {
-                ctx.status(200); // OK
+                ctx.status(200);
                 ctx.json(loggedInAccount);
             } else {
                 ctx.status(401); // Unauthorized
+            }
+        } catch (Exception e) {
+            ctx.status(400);
+        }
+    }
+    
+    private void createMessageHandler(Context ctx) {
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            Message message = mapper.readValue(ctx.body(), Message.class);
+            
+            Message createdMessage = messageService.createMessage(message);
+            
+            if (createdMessage != null) {
+                ctx.status(200);
+                ctx.json(createdMessage);
+            } else {
+                ctx.status(400);
             }
         } catch (Exception e) {
             ctx.status(400);
@@ -89,58 +119,54 @@ public class SocialMediaController {
         ctx.json(messages);
     }
     
-    private void createMessageHandler(Context ctx) {
+    private void getMessageByIdHandler(Context ctx) {
         try {
-            ObjectMapper mapper = new ObjectMapper();
-            Message message = mapper.readValue(ctx.body(), Message.class);
+            int messageId = Integer.parseInt(ctx.pathParam("message_id"));
+            Message message = messageService.getMessageById(messageId);
             
-            Message createdMessage = messageService.createMessage(message);
-            
-            if (createdMessage != null) {
-                ctx.status(201); // Created
-                ctx.json(createdMessage);
+            if (message != null) {
+                ctx.json(message);
             } else {
-                ctx.status(400); // Bad Request
+                // When message doesn't exist, return empty body with 200 status
+                ctx.json("");
             }
-        } catch (Exception e) {
+        } catch (NumberFormatException e) {
             ctx.status(400);
         }
     }
     
-    private void getMessageByIdHandler(Context ctx) {
-        int messageId = Integer.parseInt(ctx.pathParam("message_id"));
-        Message message = messageService.getMessageById(messageId);
-        
-        if (message != null) {
-            ctx.json(message);
-        } else {
-            ctx.status(404); // Not Found
-        }
-    }
-    
     private void deleteMessageHandler(Context ctx) {
-        int messageId = Integer.parseInt(ctx.pathParam("message_id"));
-        Message deletedMessage = messageService.deleteMessage(messageId);
-        
-        if (deletedMessage != null) {
-            ctx.json(deletedMessage);
-        } else {
-            ctx.status(404); // Not Found
+        try {
+            int messageId = Integer.parseInt(ctx.pathParam("message_id"));
+            Message deletedMessage = messageService.deleteMessage(messageId);
+            
+            if (deletedMessage != null) {
+                ctx.json(deletedMessage);
+            } else {
+                // For DELETE, when resource doesn't exist, still return 200 with empty body
+                ctx.json("");
+            }
+        } catch (NumberFormatException e) {
+            ctx.status(400);
         }
     }
     
     private void updateMessageHandler(Context ctx) {
         try {
             int messageId = Integer.parseInt(ctx.pathParam("message_id"));
+            
+            // For PATCH, we only need the message_text from the request body
             ObjectMapper mapper = new ObjectMapper();
             Message updates = mapper.readValue(ctx.body(), Message.class);
+            String newMessageText = updates.getMessage_text();
             
-            Message updatedMessage = messageService.updateMessage(messageId, updates.getMessage_text());
+            Message updatedMessage = messageService.updateMessageText(messageId, newMessageText);
             
             if (updatedMessage != null) {
+                ctx.status(200);
                 ctx.json(updatedMessage);
             } else {
-                ctx.status(400); // Bad Request
+                ctx.status(400);
             }
         } catch (Exception e) {
             ctx.status(400);
@@ -148,9 +174,13 @@ public class SocialMediaController {
     }
     
     private void getMessagesByUserHandler(Context ctx) {
-        int accountId = Integer.parseInt(ctx.pathParam("account_id"));
-        List<Message> messages = messageService.getMessagesByUser(accountId);
-        ctx.json(messages);
+        try {
+            int accountId = Integer.parseInt(ctx.pathParam("account_id"));
+            List<Message> messages = messageService.getMessagesByUser(accountId);
+            ctx.json(messages);
+        } catch (NumberFormatException e) {
+            ctx.status(400);
+        }
     }
 
     /**

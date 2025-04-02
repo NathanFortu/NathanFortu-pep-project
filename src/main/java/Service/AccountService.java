@@ -1,66 +1,39 @@
 package Service;
-import java.util.List;
 
 import DAO.AccountDAO;
 import Model.Account;
 
 public class AccountService {
     private AccountDAO accountDAO;
-    public AccountService(){
+    
+    public AccountService() {
         accountDAO = new AccountDAO();
     }
-    public AccountService(AccountDAO accountDAO){
+    
+    public AccountService(AccountDAO accountDAO) {
         this.accountDAO = accountDAO;
     }
-    public List<Account> getAllAccounts() {
-        return accountDAO.RetrieveAllAccounts();
-    }
-
-     public boolean registerAccount(String username, String password) {
-        // Check if username already exists
+    
+    public boolean registerAccount(String username, String password) {
+        // Validate requirements: username not blank, password at least 4 chars,
+        // and username doesn't already exist
         if (username == null || username.trim().isEmpty() || 
-            password == null || password.trim().isEmpty()) {
-            return false; // Invalid input
+            password == null || password.length() < 4 ||
+            accountDAO.usernameExists(username)) {
+            return false;
         }
         
-        // Check if username already exists before trying to register
-        if (accountDAO.usernameExists(username)) {
-            return false; // Username already taken
-        }
-        
-        // Create new account object
-        Account newAccount = new Account(username, password);
-        
-        // Try to register the account
-        return accountDAO.registerAccount(newAccount);
+        Account newAccount = new Account(0, username, password); // ID will be set by the database
+        Account insertedAccount = accountDAO.insertAccount(newAccount);
+        return insertedAccount != null;
     }
     
-    /**
-     * Authenticate a user login attempt
-     * @param username The username to check
-     * @param password The password to verify
-     * @return The Account object if login successful, null otherwise
-     */
     public Account login(String username, String password) {
         if (username == null || username.trim().isEmpty() || 
             password == null || password.trim().isEmpty()) {
-            return null; // Invalid input
+            return null;
         }
         
-        // Try to find and authenticate the account
-        return accountDAO.login(username, password);
-    }
-    
-    /**
-     * Check if a username is available
-     * @param username The username to check
-     * @return true if the username is available, false if it's already taken
-     */
-    public boolean isUsernameAvailable(String username) {
-        if (username == null || username.trim().isEmpty()) {
-            return false; // Invalid input
-        }
-        
-        return !accountDAO.usernameExists(username);
+        return accountDAO.getAccountByUsernameAndPassword(username, password);
     }
 }
