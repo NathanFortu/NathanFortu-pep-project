@@ -31,28 +31,20 @@ public class SocialMediaController {
     public Javalin startAPI() {
         Javalin app = Javalin.create();
         
-        // Requirement 1: User registration
         app.post("/register", this::registerUserHandler);
         
-        // Requirement 2: User login
         app.post("/login", this::loginUserHandler);
         
-        // Requirement 3: Create a new message
         app.post("/messages", this::createMessageHandler);
         
-        // Requirement 4: Get all messages
         app.get("/messages", this::getAllMessagesHandler);
-        
-        // Requirement 5: Get a message by ID
+
         app.get("/messages/{message_id}", this::getMessageByIdHandler);
-        
-        // Requirement 6: Delete a message
+
         app.delete("/messages/{message_id}", this::deleteMessageHandler);
-        
-        // Requirement 7: Update a message
+
         app.patch("/messages/{message_id}", this::updateMessageHandler);
-        
-        // Requirement 8: Get all messages by a user
+
         app.get("/accounts/{account_id}/messages", this::getMessagesByUserHandler);
         
         return app;
